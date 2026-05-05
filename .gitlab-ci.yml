@@ -29,7 +29,7 @@ build_and_push_image:
     # Authenticate with the built-in registry using GitLab's automatic tokens
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY  # Log in to the registry using GitLab CI/CD variables for authentication
   script:
-    - echo "Building the Docker image..."
+    - echo "Building the Docker image...."
     - docker build -t $IMAGE_TAG .  # Build the Docker image using the Dockerfile in the current directory and tag it with the appropriate registry path
     - echo "Pushing the image to the registry..."
     - docker push $IMAGE_TAG  # Push the built image to the GitLab Container Registry using the tag defined in the variables section
