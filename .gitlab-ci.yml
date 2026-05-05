@@ -19,18 +19,28 @@ test:
     - echo "Running unit tests with coverage..."
     # Restore and run tests and collect coverage info
     - dotnet restore ./TelemetryApi.sln
+    # Create the directory for results and run tests
+    - mkdir -p ./junit
     - >
       dotnet test ./TelemetryApi.Tests/TelemetryApi.Tests.csproj -c Release 
       --logger:"junit;LogFilePath=./junit/test-result.xml" 
       --collect:"XPlat Code Coverage"
+    # Extract coverage percentage for the badge
+    - apk add --no-cache grep
+    - |
+      COVERAGE=$(grep -oP 'line-rate="\K[^"]+' $(find . -name "coverage.cobertura.xml" | head -1) | awk '{print $1*100}')
+      echo "TOTAL_COVERAGE=$COVERAGE"
   artifacts:
     when: always
     paths:
       - ./junit/test-result.xml
-      - "**/TestResults/**/coverage.cobertura.xml"
+      - "**/TestResults/**/*.xml"
     reports:
       junit: ./junit/test-result.xml
-  coverage: '/Line Rate: (\d+.\d+)/'
+      coverage_report:
+        coverage_format: cobertura
+        path: "**/TestResults/**/*.xml"
+  coverage: '/TOTAL_COVERAGE=(\d+.\d+)/'
 
 # Stage 2: Build the Docker image and push it to the registry
 build_and_push_image:
@@ -45,7 +55,7 @@ build_and_push_image:
     # Authenticate with the built-in registry using GitLab's automatic tokens
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY  # Log in to the registry using GitLab CI/CD variables for authentication
   script:
-    - echo "Building the Docker image...."
+    - echo "Building the Docker image..."
     - docker build -t $IMAGE_TAG .  # Build the Docker image using the Dockerfile in the current directory and tag it with the appropriate registry path
     - echo "Pushing the image to the registry..."
     - docker push $IMAGE_TAG  # Push the built image to the GitLab Container Registry using the tag defined in the variables section

@@ -1,6 +1,4 @@
 ﻿using Moq;
-using TelemetryApi;
-using Xunit;
 
 namespace TelemetryApi.Tests;
 

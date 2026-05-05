@@ -1,6 +1,6 @@
 ﻿// ApiIntegrationTests.cs
-using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
+using System.Net.Http.Json;
 
 namespace TelemetryApi.Tests;
 
