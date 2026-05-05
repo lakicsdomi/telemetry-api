@@ -1,0 +1,35 @@
+stages:
+  - test
+  - build
+
+# Run tests in the built-in GitLab Container Registry
+variables:
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+
+# Stage 1: Run unit tests using the official .NET SDK image
+test:
+  stage: test
+  image: mcr.microsoft.com/dotnet/sdk:9.0-alpine
+  script:
+    - echo "Running unit tests..."
+    # Restore and test the entire solution
+    - dotnet restore ./TelemetryApi.sln
+    - dotnet test ./TelemetryApi.Tests/TelemetryApi.Tests.csproj -c Release
+
+# Stage 2: Build the Docker image and push it to the registry
+build_and_push_image:
+  image: docker:24.0.5  # Use the Docker CLI image to build and push the image
+  stage: build  
+  services:
+    - docker:24.0.5-dind  # Use Docker-in-Docker to allow building and pushing images
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"  # Set the TLS cert directory for secure communication with the Docker daemon
+  before_script:
+    - echo "Logging into GitLab Container Registry..."
+    # Authenticate with the built-in registry using GitLab's automatic tokens
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY  # Log in to the registry using GitLab CI/CD variables for authentication
+  script:
+    - echo "Building the Docker image..."
+    - docker build -t $IMAGE_TAG .  # Build the Docker image using the Dockerfile in the current directory and tag it with the appropriate registry path
+    - echo "Pushing the image to the registry..."
+    - docker push $IMAGE_TAG  # Push the built image to the GitLab Container Registry using the tag defined in the variables section
