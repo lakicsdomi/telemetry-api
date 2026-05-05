@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+
 namespace TelemetryApi;
 
 /// <summary>
@@ -5,7 +8,7 @@ namespace TelemetryApi;
 /// </summary>
 public interface ITelemetryService
 {
-    string GetStatus();
+    object GetStatus();
 }
 
 /// <summary>
@@ -13,16 +16,27 @@ public interface ITelemetryService
 /// </summary>
 public class TelemetryService : ITelemetryService
 {
+    private readonly string _version = "1.0.1";
+    private readonly DateTime _startTime = DateTime.UtcNow;
+
     /// <summary>
-    /// Gets the current status of the service
+    /// Gets the current status of the service, including version, uptime, OS info, and memory usage.
     /// </summary>
-    /// <returns>
-    /// String representing the current status of the service, e.g. "Online", "Offline", "Degraded"
-    /// </returns>
-    public string GetStatus()
+    public object GetStatus()
     {
-        // Determine the status of the service based on internal logic, health checks, or other criteria
-        // For demonstration purposes, we'll return "Online" as the status
-        return "Online";
+
+        var process = Process.GetCurrentProcess();
+
+        return new
+        {
+            Service = "TelemetryApi",
+            Version = _version,
+            Status = "Healthy",
+            Uptime = DateTime.UtcNow - _startTime,
+            OS = RuntimeInformation.OSDescription,
+            // Memory info in MB
+            MemoryUsageMB = process.WorkingSet64 / 1024 / 1024,
+            Timestamp = DateTime.UtcNow
+        };
     }
 }
