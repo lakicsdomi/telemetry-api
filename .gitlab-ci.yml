@@ -1,20 +1,36 @@
 stages:
   - test
   - build
+  - deploy
 
+# Include the dependency scanning template provided by GitLab to automatically scan for vulnerabilities in project dependencies
+include:
+  - template: Jobs/Dependency-Scanning.gitlab-ci.yml
+  
 # Run tests in the built-in GitLab Container Registry
 variables:
   IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
 
-# Stage 1: Run unit tests using the official .NET SDK image
+# Test stage with Coverage and JUnit reports
 test:
   stage: test
   image: mcr.microsoft.com/dotnet/sdk:9.0-alpine
   script:
-    - echo "Running unit tests..."
-    # Restore and test the entire solution
+    - echo "Running unit tests with coverage..."
+    # Restore and run tests and collect coverage info
     - dotnet restore ./TelemetryApi.sln
-    - dotnet test ./TelemetryApi.Tests/TelemetryApi.Tests.csproj -c Release
+    - >
+      dotnet test ./TelemetryApi.Tests/TelemetryApi.Tests.csproj -c Release 
+      --logger:"junit;LogFilePath=./junit/test-result.xml" 
+      --collect:"XPlat Code Coverage"
+  artifacts:
+    when: always
+    paths:
+      - ./junit/test-result.xml
+      - "**/TestResults/**/coverage.cobertura.xml"
+    reports:
+      junit: ./junit/test-result.xml
+  coverage: '/Line Rate: (\d+.\d+)/'
 
 # Stage 2: Build the Docker image and push it to the registry
 build_and_push_image:
@@ -33,3 +49,24 @@ build_and_push_image:
     - docker build -t $IMAGE_TAG .  # Build the Docker image using the Dockerfile in the current directory and tag it with the appropriate registry path
     - echo "Pushing the image to the registry..."
     - docker push $IMAGE_TAG  # Push the built image to the GitLab Container Registry using the tag defined in the variables section
+
+# Documentation stage (Doxygen) -> Deploys to GitLab Pages
+pages:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache doxygen graphviz  # Install Doxygen and Graphviz for generating documentation
+  script:
+    - mkdir -p public
+    # Create a basic Doxyfile if it doesn't exist
+    - doxygen -g Doxyfile
+    - sed -i 's/^PROJECT_NAME.*/PROJECT_NAME = "Telemetry API"/' Doxyfile
+    - sed -i 's/^RECURSIVE.*/RECURSIVE = YES/' Doxyfile
+    - sed -i 's/^GENERATE_HTML.*/GENERATE_HTML = YES/' Doxyfile
+    - sed -i 's/^HTML_OUTPUT.*/HTML_OUTPUT = public/' Doxyfile
+    - doxygen Doxyfile
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
