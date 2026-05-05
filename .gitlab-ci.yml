@@ -67,15 +67,22 @@ pages:
   stage: deploy
   image: alpine:latest
   before_script:
-    - apk add --no-cache doxygen graphviz  # Install Doxygen and Graphviz for generating documentation
+    - apk add --no-cache doxygen graphviz
   script:
     - mkdir -p public
-    # Create a basic Doxyfile if it doesn't exist
+    # Generate Doxyfile
     - doxygen -g Doxyfile
+    # Configuration tuning:
     - sed -i 's/^PROJECT_NAME.*/PROJECT_NAME = "Telemetry API"/' Doxyfile
+    # Specify the input files and directories 
+    - sed -i 's|^INPUT .*|INPUT = README.md TelemetryApi/|' Doxyfile
+    # Set the README.md as the main page of the documentation
+    - sed -i 's|^USE_MDFILE_AS_MAINPAGE .*|USE_MDFILE_AS_MAINPAGE = README.md|' Doxyfile
+    # Ignore the generated files and the README.Docker.md from the documentation
+    - sed -i 's|^EXCLUDE .*|EXCLUDE = README.Docker.md TelemetryApi/obj/ TelemetryApi/bin/|' Doxyfile
     - sed -i 's/^RECURSIVE.*/RECURSIVE = YES/' Doxyfile
     - sed -i 's/^GENERATE_HTML.*/GENERATE_HTML = YES/' Doxyfile
-    - sed -i 's/^HTML_OUTPUT.*/HTML_OUTPUT = public/' Doxyfile
+    - sed -i 's|^HTML_OUTPUT .*|HTML_OUTPUT = public|' Doxyfile
     - doxygen Doxyfile
   artifacts:
     paths:
