@@ -13,6 +13,6 @@ The main goal is to provide real-time system metrics (CPU, Memory, Uptime) for m
 *   **Documentation**: Automatically generated Doxygen documentation hosted on GitLab Pages.
 
 ## Tech Stack
-*   **Backend**: .NET 9.0 (C#)
+*   **Backend**: .NET 9.0 (C#), ASP.NET Core Web API
 *   **Testing**: xUnit, Moq, Microsoft.AspNetCore.Mvc.Testing
 *   **DevOps**: Docker, GitLab CI/CD, Prometheus, Grafana
