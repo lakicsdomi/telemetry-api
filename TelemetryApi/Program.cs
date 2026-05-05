@@ -24,4 +24,8 @@ app.MapGet("/", () => Results.Redirect("/status"));
 
 app.Run();
 
+/// <summary>
+/// The main entry point for the Telemetry API application.
+/// Has minimal setup to create a web application that serves telemetry data at the /status endpoint and exposes Prometheus metrics at /metrics.
+/// </summary>
 public partial class Program { }
