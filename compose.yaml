@@ -35,7 +35,12 @@ services:
     ports:
       - 3000:3000
     volumes:
-      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning/dashboards/dashboard-config.yaml:/etc/grafana/provisioning/dashboards/dashboard-config.yaml
+      - ./grafana/provisioning/datasources/ds-config.yaml:/etc/grafana/provisioning/datasources/ds-config.yaml
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
     depends_on:
       - prometheus
 

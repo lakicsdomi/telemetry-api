@@ -1,0 +1,9 @@
+# This file is used to configure Grafana to automatically load dashboards from a specified directory. 
+# In this case, it will look for dashboard JSON files in the /var/lib/grafana/dashboards directory. 
+# You can place your custom dashboard JSON files in that directory, and Grafana will automatically import them when it starts up.
+apiVersion: 1
+providers:
+  - name: 'TelemetryDashboards'
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

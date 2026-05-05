@@ -1,0 +1,22 @@
+{
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "API Memory Usage",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "targets": [ { "expr": "dotnet_working_set_bytes" } ],
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    }
+  ],
+  "title": "Telemetry API Dashboard",
+  "uid": "telemetry-unique-id",
+  "schemaVersion": 36
+}

@@ -1,0 +1,9 @@
+# This file is used to configure the data sources for Grafana.
+# In this case, we are configuring a Prometheus data source that Grafana will use to query metrics.
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
