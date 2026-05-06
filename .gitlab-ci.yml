@@ -76,11 +76,11 @@ deploy_to_aws:
   script:
     - echo "Executing deployment playbook..."
     - cd ansible
-    # Replace the hardcoded IP in the inventory file with the $SERVER_IP CI variable
+    # Replace the placeholder or IP in the inventory file
     - sed -i "s/13.60.207.124/$SERVER_IP/g" inventory.ini
     # Run the Ansible playbook with injected secrets and SSH arguments to skip host key verification
     - >
-      ansible-playbook playbook.yml 
+      ansible-playbook -i inventory.ini playbook.yml 
       -e "smtp_pass=$SMTP_PASSWORD" 
       --private-key ~/.ssh/id_ed25519 
       -u ubuntu 
