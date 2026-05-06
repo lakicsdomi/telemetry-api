@@ -69,10 +69,14 @@ deploy_to_aws:
   before_script:
     - echo "Setting up Ansible and SSH environment..."
     - apk add --no-cache ansible openssh-client  # Install Ansible and SSH client in the runner container
+    - eval $(ssh-agent -s)  # Start the SSH agent to manage keys automatically
     - mkdir -p ~/.ssh  # Create the hidden .ssh directory
+    - chmod 700 ~/.ssh  # Secure the .ssh directory
     # Use the $ANSIBLE_PRIVATE_KEY File variable to provide the identity file for SSH
-    - cp $ANSIBLE_PRIVATE_KEY ~/.ssh/id_ed25519
-    - chmod 400 ~/.ssh/id_ed25519  # Restrict permissions to satisfy SSH security requirements
+    # Copy to telemetry_key to match the name defined in inventory.ini
+    - cp $ANSIBLE_PRIVATE_KEY ~/.ssh/telemetry_key
+    - chmod 400 ~/.ssh/telemetry_key  # Restrict permissions to satisfy SSH security requirements
+    - ssh-add ~/.ssh/telemetry_key  # Add the private key to the SSH agent
   script:
     - echo "Executing deployment playbook..."
     - cd ansible
@@ -82,7 +86,6 @@ deploy_to_aws:
     - >
       ansible-playbook -i inventory.ini playbook.yml 
       -e "smtp_pass=$SMTP_PASSWORD" 
-      --private-key ~/.ssh/id_ed25519 
       -u ubuntu 
       --ssh-common-args='-o StrictHostKeyChecking=no'
   only:
