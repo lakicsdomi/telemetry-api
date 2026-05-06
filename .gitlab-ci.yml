@@ -82,9 +82,10 @@ deploy_to_aws:
     - echo "Executing deployment playbook..."
     - cd ansible
     - sed -i "s/13.60.207.124/$SERVER_IP/g" inventory.ini
-    # run the ansible playbook
+    # Force the use of native OpenSSH instead of Paramiko using the -c ssh parameter
     - >
       ansible-playbook -i inventory.ini playbook.yml 
+      -c ssh 
       -e "smtp_pass=$SMTP_PASSWORD" 
       -u ubuntu 
       --ssh-common-args='-o StrictHostKeyChecking=no'
