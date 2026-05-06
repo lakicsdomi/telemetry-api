@@ -8,11 +8,13 @@ builder.Services.AddSingleton<ITelemetryService, TelemetryService>();
 
 var app = builder.Build();
 
+app.UseHttpsRedirection();
+
+app.UseRouting();
+
 // Set up Prometheus metrics endpoint and middleware
 app.UseHttpMetrics();
 app.MapMetrics();
-
-app.UseHttpsRedirection();
 
 app.MapGet("/status", (ITelemetryService telemetryService) =>
 {
