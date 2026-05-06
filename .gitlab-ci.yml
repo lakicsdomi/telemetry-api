@@ -65,28 +65,42 @@ build_and_push_image:
 # Configuration Management and Deployment to AWS
 deploy_to_aws:
   stage: deploy
-  image: alpine:latest  # Use a lightweight Linux image for Ansible
+  image: python:3.12-slim
   before_script:
-    - echo "Setting up Ansible and SSH environment..."
-    - apk add --no-cache ansible openssh-client  # Install Ansible and SSH client in the runner container
-    - mkdir -p ~/.ssh  # Create the hidden .ssh directory
-    # Use the $ANSIBLE_PRIVATE_KEY File variable to provide the identity file for SSH
-    - cp $ANSIBLE_PRIVATE_KEY ~/.ssh/id_ed25519
-    - chmod 400 ~/.ssh/id_ed25519  # Restrict permissions to satisfy SSH security requirements
+    - echo "Installing Ansible and SSH client..."
+    - apt-get update && apt-get install -y ansible openssh-client
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+
+    # Decode the Base64 variable into a clean key file
+    - echo "$DEPLOY_PRIVATE_KEY" | base64 -d > ~/.ssh/telemetry_key
+    - chmod 600 ~/.ssh/telemetry_key
+
+    # Configure SSH to be quiet, accept new hosts automatically, and use our specific key
+    - |
+      cat > ~/.ssh/config <<EOF
+      Host *
+        StrictHostKeyChecking no
+        UserKnownHostsFile=/dev/null
+        IdentityFile ~/.ssh/telemetry_key
+        IdentitiesOnly yes
+      EOF
+    - chmod 644 ~/.ssh/config
+
   script:
     - echo "Executing deployment playbook..."
     - cd ansible
-    # Replace the hardcoded IP in the inventory file with the $SERVER_IP CI variable
     - sed -i "s/13.60.207.124/$SERVER_IP/g" inventory.ini
-    # Run the Ansible playbook with injected secrets and SSH arguments to skip host key verification
-    - >
-      ansible-playbook playbook.yml 
-      -e "smtp_pass=$SMTP_PASSWORD" 
-      --private-key ~/.ssh/id_ed25519 
-      -u ubuntu 
-      --ssh-common-args='-o StrictHostKeyChecking=no'
+    
+    # Run Ansible without specifying the private key, letting the SSH config handle authentication
+    - |
+      export ANSIBLE_HOST_KEY_CHECKING=False
+      ansible-playbook -i inventory.ini playbook.yml \
+        -u ubuntu \
+        -e "smtp_pass=$SMTP_PASSWORD" \
+        -c ssh
   only:
-    - main  # Only trigger deployment when changes are pushed to the main branch
+    - main
 
 # Documentation stage (Doxygen) -> Deploys to GitLab Pages
 pages:

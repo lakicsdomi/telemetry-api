@@ -1,33 +1,47 @@
 ---
 - name: Setup Telemetry Stack on AWS
   hosts: telemetry_server
-  become: yes # run tasks as root (sudo)
+  become: yes
 
   tasks:
-    - name: Update apt cache and install Docker
-      apt: # Refresh the apt cache and install necessary packages
-        name: 
-          - docker.io # Install Docker Engine
-          - docker-compose-v2 # Install Docker Compose plugin
-          - git # Install Git to clone the repository
-        state: present # Ensure the packages are installed
-        update_cache: yes # Update the apt cache before installing
+    # Fix dpkg and forcefully purge any conflicting Docker remnants.
+    - name: Force cleanup of broken dpkg and purge Docker remnants
+      shell: |
+        dpkg --configure -a || true
+        apt-get --fix-broken install -y || true
+        rm -f /etc/apt/sources.list.d/*docker*.list || true
+        apt-get purge -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-ce-rootless-extras docker.io docker-compose docker-compose-v2 containerd runc || true
+        apt-get autoremove -y || true
+      ignore_errors: yes
 
+    # Now that the system is completely clean, install the OS-provided Docker packages
+    - name: Update apt cache and install Docker
+      apt:
+        name:
+          - docker.io
+          - docker-compose-v2
+          - git
+        state: present
+        update_cache: yes
+
+    # Clone the application source code from GitLab
     - name: Clone the repository from GitLab
       git:
         repo: 'https://gitlab.com/lakicsdomi-portfolio/telemetry-api.git'
         dest: /home/ubuntu/app
         version: main
-        force: yes # Force clone to ensure we get the latest code
-      become: false # Run as the current user (not root)
+        force: yes
+      become: false
 
-    - name: Start the Docker Compose stack
-      shell: "docker compose up -d" # Start the Docker Compose stack in detached mode
-      args:
-        chdir: /home/ubuntu/app # Change to the application directory before running the command
-
-    - name: Create .env file with secrets  # Create a .env file with the SMTP password for the application
+    # Generate the .env file with the SMTP password
+    - name: Create .env file with secrets
       copy:
         dest: /home/ubuntu/app/.env
         content: "SMTP_PASSWORD={{ smtp_pass }}"
       become: false
+
+    # Run Docker Compose to build and start the application
+    - name: Start the Docker Compose stack
+      shell: "docker compose up -d"
+      args:
+        chdir: /home/ubuntu/app
