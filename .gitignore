@@ -482,3 +482,16 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Terraform local files
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+# SSH Keys - NEVER commit these
+telemetry_key
+telemetry_key.pub
+
+# Ansible
+*.retry
