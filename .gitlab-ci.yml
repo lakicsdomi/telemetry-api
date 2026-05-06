@@ -78,9 +78,10 @@ deploy_to_aws:
     - echo "Executing deployment playbook..."
     - cd ansible
     - sed -i "s/13.60.207.124/$SERVER_IP/g" inventory.ini # Replace the placeholder IP address in the Ansible inventory file with the actual server IP from the CI/CD variable
-    - > # Run the Ansible playbook to deploy the application to the AWS server, passing the SMTP password as an extra variable and using the specified SSH key for authentication
-      ansible-playbook -i inventory.ini playbook.yml 
+    - > # Run the Ansible playbook to deploy the application to the AWS server, passing the SMTP password as an extra variable and using the private key for SSH authentication
+      ANSIBLE_TRANSPORT=ssh ansible-playbook -i inventory.ini playbook.yml 
       -e "smtp_pass=$SMTP_PASSWORD" 
+      --private-key ~/.ssh/telemetry_key
       -u ubuntu 
       --ssh-common-args='-o StrictHostKeyChecking=no'
   only:
