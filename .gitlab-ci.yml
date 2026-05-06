@@ -54,7 +54,7 @@ build_and_push_image:
     DOCKER_TLS_CERTDIR: "/certs"  # Set the TLS cert directory for secure communication with the Docker daemon
   before_script:
     - echo "Logging into GitLab Container Registry..."
-    - # Authenticate with the built-in registry using GitLab's automatic tokens
+    # Authenticate with the built-in registry using GitLab's automatic tokens
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY  # Log in to the registry using GitLab CI/CD variables for authentication
   script:
     - echo "Building the Docker image..."
