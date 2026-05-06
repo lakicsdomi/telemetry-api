@@ -10,9 +10,13 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
 	ProjectSection(SolutionItems) = preProject
 		.dockerignore = .dockerignore
+		.env = .env
 		.gitlab-ci.yml = .gitlab-ci.yml
+		grafana\provisioning\alerting\alert-config.yaml = grafana\provisioning\alerting\alert-config.yaml
+		grafana\provisioning\alerting\alert-rules.yaml = grafana\provisioning\alerting\alert-rules.yaml
 		compose.yaml = compose.yaml
 		grafana\provisioning\dashboards\dashboard-config.yaml = grafana\provisioning\dashboards\dashboard-config.yaml
+		grafana\dashboards\docker-health.json = grafana\dashboards\docker-health.json
 		Dockerfile = Dockerfile
 		grafana\provisioning\datasources\ds-config.yaml = grafana\provisioning\datasources\ds-config.yaml
 		prometheus.yml = prometheus.yml
