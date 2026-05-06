@@ -68,20 +68,22 @@ deploy_to_aws:
   image: alpine:latest
   before_script:
     - echo "Setting up Ansible and SSH environment..."
-    - apk add --no-cache ansible openssh-client # Install Ansible and OpenSSH client for deployment tasks
-    - mkdir -p ~/.ssh # Create the .ssh directory if it doesn't exist
-    - chmod 700 ~/.ssh # Set secure permissions for the .ssh directory
-    - cp $ANSIBLE_PRIVATE_KEY ~/.ssh/telemetry_key # Copy the private key from the CI/CD variable to the .ssh directory
-    - echo "" >> ~/.ssh/telemetry_key # Ensure the private key ends with a newline to avoid SSH issues
+    - apk add --no-cache ansible openssh-client # Install Ansible and OpenSSH client
+    - mkdir -p ~/.ssh # Create the .ssh directory
+    - chmod 700 ~/.ssh # Set secure permissions
+    # Small fix here: Strip hidden Windows carriage returns (\r) from the pasted key to prevent libcrypto errors
+    - cat $ANSIBLE_PRIVATE_KEY | tr -d '\r' > ~/.ssh/telemetry_key
+    - echo "" >> ~/.ssh/telemetry_key # Ensure trailing newline
     - chmod 400 ~/.ssh/telemetry_key # Set secure permissions for the private key
   script:
     - echo "Executing deployment playbook..."
     - cd ansible
-    - sed -i "s/13.60.207.124/$SERVER_IP/g" inventory.ini # Replace the placeholder IP address in the Ansible inventory file with the actual server IP from the CI/CD variable
-    - > # Run the Ansible playbook to deploy the application to the AWS server, passing the SMTP password as an extra variable and using the private key for SSH authentication
-      ANSIBLE_TRANSPORT=ssh ansible-playbook -i inventory.ini playbook.yml 
+    - sed -i "s/13.60.207.124/$SERVER_IP/g" inventory.ini
+    # Run the Ansible playbook with explicit private key definition
+    - > 
+      ansible-playbook -i inventory.ini playbook.yml 
       -e "smtp_pass=$SMTP_PASSWORD" 
-      --private-key ~/.ssh/telemetry_key
+      --private-key ~/.ssh/telemetry_key 
       -u ubuntu 
       --ssh-common-args='-o StrictHostKeyChecking=no'
   only:
