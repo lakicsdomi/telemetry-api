@@ -44,7 +44,7 @@ test:
         path: "**/TestResults/**/*.xml"
   coverage: '/TOTAL_COVERAGE=(\d+.\d+)/'
 
-# Stage 2: Build the Docker image and push it to the registry
+# Build the Docker image and push it to the registry
 build_and_push_image:
   image: docker:24.0.5  # Use the Docker CLI image to build and push the image
   stage: build  
@@ -54,13 +54,39 @@ build_and_push_image:
     DOCKER_TLS_CERTDIR: "/certs"  # Set the TLS cert directory for secure communication with the Docker daemon
   before_script:
     - echo "Logging into GitLab Container Registry..."
-    # Authenticate with the built-in registry using GitLab's automatic tokens
+    - # Authenticate with the built-in registry using GitLab's automatic tokens
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY  # Log in to the registry using GitLab CI/CD variables for authentication
   script:
     - echo "Building the Docker image..."
     - docker build -t $IMAGE_TAG .  # Build the Docker image using the Dockerfile in the current directory and tag it with the appropriate registry path
     - echo "Pushing the image to the registry..."
     - docker push $IMAGE_TAG  # Push the built image to the GitLab Container Registry using the tag defined in the variables section
+
+# Configuration Management and Deployment to AWS
+deploy_to_aws:
+  stage: deploy
+  image: alpine:latest  # Use a lightweight Linux image for Ansible
+  before_script:
+    - echo "Setting up Ansible and SSH environment..."
+    - apk add --no-cache ansible openssh-client  # Install Ansible and SSH client in the runner container
+    - mkdir -p ~/.ssh  # Create the hidden .ssh directory
+    # Use the $ANSIBLE_PRIVATE_KEY File variable to provide the identity file for SSH
+    - cp $ANSIBLE_PRIVATE_KEY ~/.ssh/id_ed25519
+    - chmod 400 ~/.ssh/id_ed25519  # Restrict permissions to satisfy SSH security requirements
+  script:
+    - echo "Executing deployment playbook..."
+    - cd ansible
+    # Replace the hardcoded IP in the inventory file with the $SERVER_IP CI variable
+    - sed -i "s/13.60.207.124/$SERVER_IP/g" inventory.ini
+    # Run the Ansible playbook with injected secrets and SSH arguments to skip host key verification
+    - >
+      ansible-playbook playbook.yml 
+      -e "smtp_pass=$SMTP_PASSWORD" 
+      --private-key ~/.ssh/id_ed25519 
+      -u ubuntu 
+      --ssh-common-args='-o StrictHostKeyChecking=no'
+  only:
+    - main  # Only trigger deployment when changes are pushed to the main branch
 
 # Documentation stage (Doxygen) -> Deploys to GitLab Pages
 pages:
