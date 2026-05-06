@@ -5,7 +5,3 @@ scrape_configs:
   - job_name: 'telemetry-api'
     static_configs:
       - targets: ['server:8080']
-
-  - job_name: 'cadvisor'
-    static_configs:
-      - targets: ['cadvisor:8080']
