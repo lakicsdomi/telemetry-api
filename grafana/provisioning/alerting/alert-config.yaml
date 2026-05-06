@@ -1,0 +1,15 @@
+# Provisioning file for Grafana Alerting Contact Points
+apiVersion: 1
+contactPoints:
+  - orgId: 1
+    name: GmailAlerts
+    receivers:
+      - uid: email_receiver_1
+        type: email
+        settings:
+          addresses: lakicsdomi@gmail.com
+          singleEmail: true
+
+policies:
+  - orgId: 1
+    receiver: GmailAlerts
