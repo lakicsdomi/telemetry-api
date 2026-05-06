@@ -1,0 +1,33 @@
+---
+- name: Setup Telemetry Stack on AWS
+  hosts: telemetry_server
+  become: yes # run tasks as root (sudo)
+
+  tasks:
+    - name: Update apt cache and install Docker
+      apt: # Refresh the apt cache and install necessary packages
+        name: 
+          - docker.io # Install Docker Engine
+          - docker-compose-v2 # Install Docker Compose plugin
+          - git # Install Git to clone the repository
+        state: present # Ensure the packages are installed
+        update_cache: yes # Update the apt cache before installing
+
+    - name: Clone the repository from GitLab
+      git:
+        repo: 'https://gitlab.com/lakicsdomi-portfolio/telemetry-api.git'
+        dest: /home/ubuntu/app
+        version: main
+        force: yes # Force clone to ensure we get the latest code
+      become: false # Run as the current user (not root)
+
+    - name: Start the Docker Compose stack
+      shell: "docker compose up -d" # Start the Docker Compose stack in detached mode
+      args:
+        chdir: /home/ubuntu/app # Change to the application directory before running the command
+
+    - name: Create .env file with secrets  # Create a .env file with the SMTP password for the application
+      copy:
+        dest: /home/ubuntu/app/.env
+        content: "SMTP_PASSWORD={{ smtp_pass }}"
+      become: false
