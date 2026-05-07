@@ -8,13 +8,15 @@ A modern, containerized .NET 9 Minimal API equipped with a full-fledged observab
 
 -   **Telemetry Minimal API:** A high-performance C# .NET 9 REST API that provides real-time system metrics (CPU, Memory, Uptime) via a `/status` endpoint.
     
--   **Automated CI/CD & AWS Deployment:** Fully integrated GitLab pipeline for automated testing, multi-stage Docker build optimization, and continuous deployment (CD) to an AWS EC2 instance using Ansible.
+-   **Infrastructure as Code (Terraform):** Cloud infrastructure provisioning is fully automated. The AWS EC2 instance, VPC, and Security Groups are defined and deployed using Terraform.
+    
+-   **Automated CI/CD & Configuration Management:** Fully integrated GitLab pipeline for automated testing, multi-stage Docker build optimization, and continuous deployment (CD). Server configuration and application deployment are managed by Ansible.
     
 -   **Documentation:** Automatically generated Doxygen documentation hosted on GitLab Pages.
     
 -   **Automated Metrics Exposure:** Native integration with `prometheus-net`, automatically collecting and exposing HTTP request metrics at the `/metrics` endpoint.
     
--   **Infrastructure as Code (Docker & Ansible):** The entire application and monitoring stack can be spun up using Docker Compose, while server provisioning and deployment are fully automated via Ansible playbooks.
+-   **Containerized Stack:** The entire application and monitoring stack can be spun up locally or remotely using a single `docker compose up -d` command.
     
 -   **Provisioned Observability (Grafana & Prometheus):**
     -   **Zero-Click Setup:** Data sources, contact points, and dashboards are automatically provisioned on startup.
@@ -36,35 +38,11 @@ A modern, containerized .NET 9 Minimal API equipped with a full-fledged observab
 -   PromQL (Alert rule queries)
     
 **Infrastructure & DevOps:**
--   AWS (EC2)
--   Ansible
--   Docker & Docker Compose
--   GitLab CI/CD
--   YAML (Provisioning & Configuration)
-    
--   **Provisioned Observability (Grafana & Prometheus):**
-    -   **Zero-Click Setup:** Data sources, contact points, and dashboards are automatically provisioned on startup.
-    -   **Alerting as Code:** Pre-configured PromQL-based alert rules (e.g., detecting `404 Not Found` error spikes) defined entirely in YAML.
-    -   **Automated Notifications:** SMTP integration for instant email delivery when alert thresholds are breached.
-        
--   **Traffic Simulation:** Includes a custom Python script (`traffic_generator.py`) to simulate user behavior and generate load/errors for testing purposes.
-
-## 🛠️ Tech Stack
-
-**Application & Testing:**
--   Backend: .NET 9.0 (C#), ASP.NET Core Web API
--   Testing: xUnit, Moq, Microsoft.AspNetCore.Mvc.Testing
--   Scripting: Python 3 (Requests library for load generation)
-    
-**Observability & Monitoring:**
--   Prometheus (Metrics scraping & Time-series DB)
--   Grafana (Data visualization & Alerting engine)
--   PromQL (Alert rule queries)
-    
-**Infrastructure & DevOps:**
--   Docker & Docker Compose
--   GitLab CI/CD
--   YAML (Provisioning & Configuration) 
+-   Cloud: AWS (EC2)
+-   IaC & Provisioning: Terraform
+-   Configuration Management: Ansible
+-   Containerization: Docker & Docker Compose
+-   CI/CD: GitLab CI/CD
 
 ## ⚙️ How to Run
 
@@ -72,6 +50,7 @@ A modern, containerized .NET 9 Minimal API equipped with a full-fledged observab
 
 -   Docker and Docker Desktop (or Docker Engine) installed.
 -   Python 3.x (for the traffic generator).
+-   *(Optional)* Terraform installed for AWS infrastructure provisioning.
 
 ### 2. Environment Variables
 
@@ -82,7 +61,7 @@ SMTP_PASSWORD=your_16_character_google_app_password
 
 ```
 
-### 3. Spin up the Stack
+### 3. Spin up the Stack (Locally)
 
 Build the .NET image and start the containers:
 
