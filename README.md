@@ -2,19 +2,45 @@
 ![Coverage](https://gitlab.com/lakicsdomi-portfolio/telemetry-api/badges/main/coverage.svg)
 ![Pipeline Status](https://gitlab.com/lakicsdomi-portfolio/telemetry-api/badges/main/pipeline.svg)
 
-A modern, containerized .NET 9 Minimal API equipped with a full-fledged observability and monitoring stack. The project demonstrates the "Configuration as Code" (CaC) and "Alerting as Code" approaches using Docker, Prometheus, and Grafana, while maintaining robust testing and CI/CD pipelines.
+A modern, containerized .NET 9 Minimal API equipped with a full-fledged observability and monitoring stack. The project demonstrates the "Configuration as Code" (CaC) and "Alerting as Code" approaches using Docker, Prometheus, and Grafana, while maintaining robust testing and automated CI/CD pipelines deploying directly to AWS.
 
 ## 🚀 Key Features
 
 -   **Telemetry Minimal API:** A high-performance C# .NET 9 REST API that provides real-time system metrics (CPU, Memory, Uptime) via a `/status` endpoint.
     
--   **Automated CI/CD & Testing:** Fully integrated GitLab pipeline for automated testing, and multi-stage Docker build optimization.
+-   **Automated CI/CD & AWS Deployment:** Fully integrated GitLab pipeline for automated testing, multi-stage Docker build optimization, and continuous deployment (CD) to an AWS EC2 instance using Ansible.
     
 -   **Documentation:** Automatically generated Doxygen documentation hosted on GitLab Pages.
     
 -   **Automated Metrics Exposure:** Native integration with `prometheus-net`, automatically collecting and exposing HTTP request metrics at the `/metrics` endpoint.
     
--   **Infrastructure as Code (Docker):** The entire application, database (coming soon), and monitoring stack can be spun up using a single `docker compose up -d` command.
+-   **Infrastructure as Code (Docker & Ansible):** The entire application and monitoring stack can be spun up using Docker Compose, while server provisioning and deployment are fully automated via Ansible playbooks.
+    
+-   **Provisioned Observability (Grafana & Prometheus):**
+    -   **Zero-Click Setup:** Data sources, contact points, and dashboards are automatically provisioned on startup.
+    -   **Alerting as Code:** Pre-configured PromQL-based alert rules (e.g., detecting `404 Not Found` error spikes) defined entirely in YAML.
+    -   **Automated Notifications:** SMTP integration for instant email delivery when alert thresholds are breached.
+        
+-   **Traffic Simulation:** Includes a custom Python script (`traffic_generator.py`) to simulate user behavior and generate load/errors for testing purposes.
+
+## 🛠️ Tech Stack
+
+**Application & Testing:**
+-   Backend: .NET 9.0 (C#), ASP.NET Core Web API
+-   Testing: xUnit, Moq, Microsoft.AspNetCore.Mvc.Testing
+-   Scripting: Python 3 (Requests library for load generation)
+    
+**Observability & Monitoring:**
+-   Prometheus (Metrics scraping & Time-series DB)
+-   Grafana (Data visualization & Alerting engine)
+-   PromQL (Alert rule queries)
+    
+**Infrastructure & DevOps:**
+-   AWS (EC2)
+-   Ansible
+-   Docker & Docker Compose
+-   GitLab CI/CD
+-   YAML (Provisioning & Configuration)
     
 -   **Provisioned Observability (Grafana & Prometheus):**
     -   **Zero-Click Setup:** Data sources, contact points, and dashboards are automatically provisioned on startup.
