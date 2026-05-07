@@ -40,6 +40,6 @@ if __name__ == "__main__":
     try:
         while True:
             send_request()
-            time.sleep(random.uniform(0.1, 1.0))  # Random delay between requests
+            time.sleep(random.uniform(5.0, 10.0))  # Random delay between requests
     except KeyboardInterrupt:
         print("\nAPI Traffic Generator stopped.")

@@ -2,19 +2,21 @@
 ![Coverage](https://gitlab.com/lakicsdomi-portfolio/telemetry-api/badges/main/coverage.svg)
 ![Pipeline Status](https://gitlab.com/lakicsdomi-portfolio/telemetry-api/badges/main/pipeline.svg)
 
-A modern, containerized .NET 9 Minimal API equipped with a full-fledged observability and monitoring stack. The project demonstrates the "Configuration as Code" (CaC) and "Alerting as Code" approaches using Docker, Prometheus, and Grafana, while maintaining robust testing and CI/CD pipelines.
+A modern, containerized .NET 9 Minimal API equipped with a full-fledged observability and monitoring stack. The project demonstrates the "Configuration as Code" (CaC) and "Alerting as Code" approaches using Docker, Prometheus, and Grafana, while maintaining robust testing and automated CI/CD pipelines deploying directly to AWS.
 
 ## 🚀 Key Features
 
 -   **Telemetry Minimal API:** A high-performance C# .NET 9 REST API that provides real-time system metrics (CPU, Memory, Uptime) via a `/status` endpoint.
     
--   **Automated CI/CD & Testing:** Fully integrated GitLab pipeline for automated testing, and multi-stage Docker build optimization.
+-   **Infrastructure as Code (Terraform):** Cloud infrastructure provisioning is fully automated. The AWS EC2 instance, VPC, and Security Groups are defined and deployed using Terraform.
+    
+-   **Automated CI/CD & Configuration Management:** Fully integrated GitLab pipeline for automated testing, multi-stage Docker build optimization, and continuous deployment (CD). Server configuration and application deployment are managed by Ansible.
     
 -   **Documentation:** Automatically generated Doxygen documentation hosted on GitLab Pages.
     
 -   **Automated Metrics Exposure:** Native integration with `prometheus-net`, automatically collecting and exposing HTTP request metrics at the `/metrics` endpoint.
     
--   **Infrastructure as Code (Docker):** The entire application, database (coming soon), and monitoring stack can be spun up using a single `docker compose up -d` command.
+-   **Containerized Stack:** The entire application and monitoring stack can be spun up locally or remotely using a single `docker compose up -d` command.
     
 -   **Provisioned Observability (Grafana & Prometheus):**
     -   **Zero-Click Setup:** Data sources, contact points, and dashboards are automatically provisioned on startup.
@@ -36,9 +38,11 @@ A modern, containerized .NET 9 Minimal API equipped with a full-fledged observab
 -   PromQL (Alert rule queries)
     
 **Infrastructure & DevOps:**
--   Docker & Docker Compose
--   GitLab CI/CD
--   YAML (Provisioning & Configuration) 
+-   Cloud: AWS (EC2)
+-   IaC & Provisioning: Terraform
+-   Configuration Management: Ansible
+-   Containerization: Docker & Docker Compose
+-   CI/CD: GitLab CI/CD
 
 ## ⚙️ How to Run
 
@@ -46,6 +50,7 @@ A modern, containerized .NET 9 Minimal API equipped with a full-fledged observab
 
 -   Docker and Docker Desktop (or Docker Engine) installed.
 -   Python 3.x (for the traffic generator).
+-   *(Optional)* Terraform installed for AWS infrastructure provisioning.
 
 ### 2. Environment Variables
 
@@ -56,7 +61,7 @@ SMTP_PASSWORD=your_16_character_google_app_password
 
 ```
 
-### 3. Spin up the Stack
+### 3. Spin up the Stack (Locally)
 
 Build the .NET image and start the containers:
 
@@ -69,12 +74,12 @@ docker compose up -d --build
 
 ### 4. Test the Alerting System
 
-Run the Python traffic generator to simulate requests and 404 errors. This will trigger the Grafana alert rule automatically.
+Run the Python traffic generator to simulate requests and 404 errors. This will trigger the Grafana alert rule automatically. Pass the base URL of the API as the argument (e.g.: `http://localhost:8080`)
 
 
 ```bash
 pip install requests
-python scripts/traffic_generator.py
+python scripts/traffic_generator.py <API_BASE_URL>
 
 ```
 
