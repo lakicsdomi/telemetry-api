@@ -4,63 +4,50 @@
     {
       "type": "timeseries",
       "title": "HTTP total requests",
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 0
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "Prometheus"
-      },
-      "targets": [
-        {
-          "expr": "http_requests_received_total",
-          "refId": "A"
-        }
-      ]
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [ { "expr": "http_requests_received_total", "refId": "A" } ]
     },
     {
       "type": "timeseries",
       "title": "CPU seconds total",
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 0
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "Prometheus"
-      },
-      "targets": [
-        {
-          "expr": "process_cpu_seconds_total",
-          "refId": "A"
-        }
-      ]
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [ { "expr": "process_cpu_seconds_total", "refId": "A" } ]
     },
     {
       "type": "timeseries",
       "title": "Dotnet Total Memory",
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "Prometheus"
-      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "fieldConfig": { "defaults": { "unit": "decbytes" } },
-      "targets": [
-        {
-          "expr": "dotnet_total_memory_bytes",
-          "refId": "A"
+      "targets": [ { "expr": "dotnet_total_memory_bytes", "refId": "A" } ]
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU usage",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [ { "expr": "rate(process_cpu_seconds_total[1m])", "refId": "A" } ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": { "mode": "continuous-GrYlRd" },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "gradientMode": "scheme",
+            "lineWidth": 1
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "red", "value": 80 }
+            ]
+          }
         }
-      ]
+      }
     }
   ],
   "title": "Basic telemetry",
