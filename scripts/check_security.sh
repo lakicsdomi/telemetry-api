@@ -9,6 +9,16 @@ AUTH_LOG="/var/log/auth.log"
 FAILED_ATTEMPT_THRESHOLD=10
 BOTNET_THRESHOLD=3
 
+# Internal whitelist of default safe IPs
+SAFE_IPS="127.0.0.1 ::1"
+ENV_FILE="/home/ubuntu/app/.env"
+
+# Read AllowedIps from .env file if it exists, replacing commas with spaces and stripping CIDR notation
+if [ -f "$ENV_FILE" ]; then
+    ENV_IPS=$(grep "^AllowedIps=" "$ENV_FILE" | cut -d '=' -f2 | tr ',' ' ' | sed 's/\/[0-9]*//g')
+    SAFE_IPS="$SAFE_IPS $ENV_IPS"
+fi
+
 if [ ! -f "$AUTH_LOG" ]; then
     echo "Auth log not found: $AUTH_LOG"
     exit 1
@@ -35,6 +45,12 @@ for subnet in $BOTNET_SUBNETS; do
         | sort -u)
 
     for ip in $IP_LIST; do
+        # Whitelist check: do not ban developer IPs
+        if [[ " $SAFE_IPS " =~ " $ip " ]]; then
+            echo "Skipping developer/safe IP: $ip"
+            continue
+        fi
+        
         echo "Banning botnet member: $ip"
         sudo fail2ban-client set sshd banip "$ip" >/dev/null 2>&1
     done
@@ -52,6 +68,12 @@ AGGRESSIVE_IPS=$(sudo grep "Failed password" "$AUTH_LOG" \
 
 while read -r count ip; do
     if [ -n "$ip" ] && [ "$count" -gt "$FAILED_ATTEMPT_THRESHOLD" ]; then
+        # Whitelist check: do not ban developer IPs
+        if [[ " $SAFE_IPS " =~ " $ip " ]]; then
+            echo "Skipping developer/safe IP: $ip"
+            continue
+        fi
+        
         echo "Banning $ip (Attempts: $count)"
         sudo fail2ban-client set sshd banip "$ip" >/dev/null 2>&1
     fi
