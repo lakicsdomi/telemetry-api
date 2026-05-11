@@ -64,3 +64,5 @@
       service:
         name: fail2ban
         state: restarted
+      # Avoid dry-run errors by only restarting if we're not in check mode
+      when: not ansible_check_mode
