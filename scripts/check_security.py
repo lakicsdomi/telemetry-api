@@ -10,8 +10,26 @@ AUTH_LOG = "/var/log/auth.log" # Path to the SSH authentication log
 FAILED_ATTEMPT_THRESHOLD = 10  # Threshold for failed login attempts
 BOTNET_THRESHOLD = 3           # Threshold for number of unique IPs in a subnet to consider it a potential botnet
 
-# Ban an IP using fail2ban-client
+# Internal whitelist of safe IPs
+SAFE_IPS = {"127.0.0.1", "::1"}
+ENV_FILE = Path("/home/ubuntu/app/.env")
+
+# Read AllowedIps from .env file if it exists, parse CSV and strip CIDR notation
+if ENV_FILE.exists():
+    for line in ENV_FILE.read_text(errors="ignore").splitlines():
+        if line.startswith("AllowedIps="):
+            env_ips = line.split("=", 1)[1].split(",")
+            for env_ip in env_ips:
+                clean_ip = env_ip.split("/")[0].strip()
+                SAFE_IPS.add(clean_ip)
+
+# Ban an IP using fail2ban-client, checking the whitelist first
 def ban_ip(ip):
+    # Whitelist check: do not ban developer IPs
+    if ip in SAFE_IPS:
+        print(f"Skipping developer/safe IP: {ip}")
+        return
+
     subprocess.run(
         f"sudo fail2ban-client set sshd banip {ip}",
         shell=True,
