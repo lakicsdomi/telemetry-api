@@ -31,7 +31,20 @@
         dest: /etc/fail2ban/jail.local
         content: |
           [DEFAULT]
+          # Whitelist current developer and local IPs
           ignoreip = 127.0.0.1/8 ::1 {{ dev_ips | replace(',', ' ') }}
+          
+          # Ban time: 24 hours (86400 seconds)
+          bantime  = 86400
+          
+          # Time window: 1 hour (3600 seconds) to look for retries
+          findtime  = 3600
+          
+          # Maximum retries before banning
+          maxretry = 3
+
+          [sshd]
+          enabled = true
       notify: Restart Fail2Ban
 
     # Clone the application source code from GitLab
