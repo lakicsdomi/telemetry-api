@@ -10,7 +10,8 @@ builder.Services.AddSingleton<ITelemetryService, TelemetryService>();
 // Standard HTTP Logging for Docker (Logs to stdout, includes IP, safely redacts headers)
 builder.Services.AddHttpLogging(logging =>
 {
-    logging.LoggingFields = HttpLoggingFields.RequestPropertiesAndHeaders |
+    logging.LoggingFields = HttpLoggingFields.RequestMethod |
+                            HttpLoggingFields.RequestPropertiesAndHeaders |
                             HttpLoggingFields.ResponseStatusCode;
     // Avoid logging Prometheus scrape requests to prevent log spam
     logging.CombineLogs = true;
@@ -18,7 +19,7 @@ builder.Services.AddHttpLogging(logging =>
 
 var app = builder.Build();
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 
 // HTTP logging middleware
 app.UseHttpLogging();
