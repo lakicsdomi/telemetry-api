@@ -19,9 +19,15 @@ builder.Services.AddHttpLogging(logging =>
 {
     logging.LoggingFields = HttpLoggingFields.RequestMethod |
                             HttpLoggingFields.RequestPropertiesAndHeaders |
-                            HttpLoggingFields.ResponseStatusCode;
+                            HttpLoggingFields.ResponseStatusCode |
+                            HttpLoggingFields.RequestPath;
+
+    // Log the real client IP address (from X-Forwarded-For or RemoteIpAddress)
+    logging.RequestHeaders.Add("X-Forwarded-For");
     // Avoid logging Prometheus scrape requests to prevent log spam
     logging.CombineLogs = true;
+
+    
 });
 
 var app = builder.Build();
