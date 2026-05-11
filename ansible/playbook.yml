@@ -14,15 +14,25 @@
         apt-get autoremove -y || true
       ignore_errors: yes
 
-    # Now that the system is completely clean, install the OS-provided Docker packages
-    - name: Update apt cache and install Docker
+    # Now that the system is completely clean, install the OS-provided packages
+    - name: Update apt cache and install Docker, Git, and Fail2Ban
       apt:
         name:
           - docker.io
           - docker-compose-v2
           - git
+          - fail2ban
         state: present
         update_cache: yes
+
+    # Secure SSH access by whitelisting developer IPs in Fail2Ban
+    - name: Whitelist my IPs in Fail2Ban
+      copy:
+        dest: /etc/fail2ban/jail.local
+        content: |
+          [DEFAULT]
+          ignoreip = 127.0.0.1/8 ::1 {{ dev_ips | replace(',', ' ') }}
+      notify: Restart Fail2Ban
 
     # Clone the application source code from GitLab
     - name: Clone the repository from GitLab
@@ -33,11 +43,13 @@
         force: yes
       become: false
 
-    # Generate the .env file with the SMTP password
+    # Generate the .env file with the SMTP password and dynamic IPs
     - name: Create .env file with secrets
       copy:
         dest: /home/ubuntu/app/.env
-        content: "SMTP_PASSWORD={{ smtp_pass }}"
+        content: |
+          SMTP_PASSWORD={{ smtp_pass }}
+          AllowedIps={{ dev_ips | replace(' ', ',') }}
       become: false
 
     # Run Docker Compose to build and start the application
@@ -45,3 +57,12 @@
       shell: "docker compose up -d"
       args:
         chdir: /home/ubuntu/app
+
+  # Handlers are only executed if notified by a task that changed the system state
+  handlers:
+    - name: Restart Fail2Ban
+      service:
+        name: fail2ban
+        state: restarted
+      # Avoid dry-run errors by only restarting if we're not in check mode
+      when: not ansible_check_mode

@@ -488,6 +488,9 @@ $RECYCLE.BIN/
 *.tfstate
 *.tfstate.backup
 .terraform.lock.hcl
+*/terraform.tfvars
+*.tfplan
+crash.log
 
 # SSH Keys - NEVER commit these
 telemetry_key

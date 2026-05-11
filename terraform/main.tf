@@ -11,6 +11,12 @@ provider "aws" {
   # The region is passed via environment variables (eu-north-1)
 }
 
+# Define a variable for the developer IPs
+variable "developer_ips" {
+  description = "List of allowed IPs for monitoring"
+  type        = list(string)
+}
+
 # Fetch the latest Ubuntu 22.04 AMI (Amazon Machine Image) dynamically, and save it to 'aws_ami_ubuntu' variable.
 data "aws_ami" "ubuntu" {
   most_recent = true
@@ -25,7 +31,7 @@ data "aws_ami" "ubuntu" {
 # Upload the public SSH key to AWS
 resource "aws_key_pair" "deployer" {
   key_name   = "telemetry-ssh-key"
-  public_key = file("telemetry_key.pub") # Refers to the key you just generated
+  public_key = file("telemetry_key.pub")
 }
 
 # Create a Security Group (Firewall rules)
@@ -38,10 +44,12 @@ resource "aws_security_group" "telemetry_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # Warning: In production, limit this to your IP!
+    # We leave this open (0.0.0.0/0) because GitLab Runners use dynamic, ever-changing IPs.
+    # Security is maintained via strict SSH key authentication and Fail2Ban active monitoring.
+    cidr_blocks = ["0.0.0.0/0"] 
   }
 
-  ingress {  # Allowing access to the API on port 8080. If we add more services, we should not allow this port to the world.
+  ingress {  
     description = "Minimal API"
     from_port   = 8080
     to_port     = 8080
@@ -54,7 +62,8 @@ resource "aws_security_group" "telemetry_sg" {
     from_port   = 3000
     to_port     = 3000
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    # Restricted to developer IP using variables for security
+    cidr_blocks = var.developer_ips
   }
 
   ingress {
@@ -62,7 +71,8 @@ resource "aws_security_group" "telemetry_sg" {
     from_port   = 9090
     to_port     = 9090
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    # Restricted to developer IP using variables for security
+    cidr_blocks = var.developer_ips
   }
 
   egress {
