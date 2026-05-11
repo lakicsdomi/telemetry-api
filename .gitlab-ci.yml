@@ -65,10 +65,11 @@ build_and_push_image:
 # Base template for deployment to avoid code repetition (DRY)
 .deploy_template:
   stage: deploy
-  image: python:3.12-slim
+  # Switching to a lightweight Alpine image for faster execution (~1 minute saved)
+  image: alpine:3.19
   before_script:
     - echo "Installing Ansible and SSH client..."
-    - apt-get update && apt-get install -y ansible openssh-client
+    - apk add --no-cache ansible openssh-client
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
     # Decode the Base64 variable into a clean key file
@@ -86,7 +87,9 @@ build_and_push_image:
     - chmod 644 ~/.ssh/config
     # Prepare ansible execution
     - cd ansible
-    - sed -i "s/13.60.207.124/$SERVER_IP/g" inventory.ini
+    # Robust inventory generation: Overwrite file with current SERVER_IP from GitLab variables
+    - echo "[telemetry_server]" > inventory.ini
+    - echo "$SERVER_IP" >> inventory.ini
     - export ANSIBLE_HOST_KEY_CHECKING=False
 
 # Dry-Run deployment (Manual trigger on feature branches)
