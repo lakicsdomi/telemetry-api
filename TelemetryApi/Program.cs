@@ -63,7 +63,11 @@ app.MapGet("/stats/ips", (IConfiguration config, HttpContext context) =>
         return Results.NotFound(); // Return 404 to hide the existence of this endpoint from unauthorized users
     }
 
-    return Results.Ok(ipRequestCounts.OrderByDescending(x => x.Value));
+    // Explicit ToDictionary call ensures the JSON serializes as a standard JSON object {}
+    var result = ipRequestCounts.OrderByDescending(x => x.Value)
+                            .ToDictionary(x => x.Key, x => x.Value);
+
+    return Results.Ok(result);
 });
 
 // app.UseHttpsRedirection();
