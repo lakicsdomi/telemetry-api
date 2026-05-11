@@ -90,6 +90,7 @@
       loop:
         - check_security.sh
         - check_security.py
+      ignore_errors: "{{ ansible_check_mode }}"
 
     # Schedule the security audit and auto-ban script every hour
     - name: Schedule security auto-ban script every hour
