@@ -14,6 +14,10 @@ services:
       target: final
     ports:
       - 8080:8080
+    env_file:
+      - .env
+    environment:
+      - ASPNETCORE_URLS=http://+:8080;http://+:9091 # Expose both the main API port and the metrics port for Prometheus scraping 
     develop:
       watch:
         - action: rebuild
