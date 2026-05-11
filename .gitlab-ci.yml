@@ -1,6 +1,19 @@
+workflow: # Define the workflow rules to control when pipelines are created
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never # Prevent duplicate pipelines for branches with open merge requests
+    - if: $CI_COMMIT_BRANCH == "main" 
+    - if: $CI_COMMIT_BRANCH 
+
+# The above rules ensure that pipelines are only created for merge request events, the main branch,
+# and any other branches that do not have open merge requests, thus avoiding redundant pipelines 
+# and optimizing CI/CD resource usage.
+
 stages:
   - test
   - build
+  - validate # New stage for configuration validation (dry-run)
   - deploy
 
 # Include the dependency scanning template provided by GitLab to automatically scan for vulnerabilities in project dependencies
@@ -62,19 +75,35 @@ build_and_push_image:
     - echo "Pushing the image to the registry..."
     - docker push $IMAGE_TAG  # Push the built image to the GitLab Container Registry using the tag defined in the variables section
 
+# Ansible syntax check to validate the playbook structure and variable references w.o. executing any tasks,
+# ensuring that the configuration is correct before attempting a deployment.
+ansible_syntax_check:
+  stage: validate
+  image: alpine:3.19
+  script:
+    - apk add --no-cache ansible
+    - cd ansible
+    # Checks if the YAML structure and the variable references are correct.
+    - ansible-playbook playbook.yml --syntax-check
+  rules:
+    - if: $CI_COMMIT_BRANCH != "main"
+
 # Base template for deployment to avoid code repetition (DRY)
 .deploy_template:
   stage: deploy
-  # Switching to a lightweight Alpine image for faster execution (~1 minute saved)
+  # lightweight alpine image for faster execution of Ansible playbooks
   image: alpine:3.19
   before_script:
     - echo "Installing Ansible and SSH client..."
     - apk add --no-cache ansible openssh-client
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
-    # Decode the Base64 variable into a clean key file
-    - echo "$DEPLOY_PRIVATE_KEY" | base64 -d > ~/.ssh/telemetry_key
-    - chmod 600 ~/.ssh/telemetry_key
+    # Decode the Base64 variable into a clean key file if it exists
+    - |
+      if [ -n "$DEPLOY_PRIVATE_KEY" ]; then
+        echo "$DEPLOY_PRIVATE_KEY" | base64 -d > ~/.ssh/telemetry_key
+        chmod 600 ~/.ssh/telemetry_key
+      fi
     # Configure SSH to be quiet, accept new hosts automatically, and use our specific key
     - |
       cat > ~/.ssh/config <<EOF
@@ -102,15 +131,27 @@ deploy_dry_run:
   rules:
     - if: '$CI_COMMIT_BRANCH != "main"'
       when: manual
+  allow_failure: true # Allow failures in dry-run to not block the pipeline, as it's meant for testing configuration validity on feature branches
+
+# Main branch dry run check before actual deployment (Auto on main)
+deploy_check_on_main:
+  extends: .deploy_template
+  script:
+    - echo "Verifying deployment possibility on main server..."
+    - ansible-playbook -i inventory.ini playbook.yml -u ubuntu -e "smtp_pass=$SMTP_PASSWORD" -e "dev_ips='$DEVELOPER_IPS'" -c ssh --check
+  only:
+    - main
+  # this ensures, that if there are any issues, the next deploy_to_aws job will not run
 
 # Actual configuration Management and Deployment to AWS (Auto on main)
 deploy_to_aws:
   extends: .deploy_template
   script:
-    - echo "Executing deployment playbook..."
+    - echo "Executing actual deployment..."
     - ansible-playbook -i inventory.ini playbook.yml -u ubuntu -e "smtp_pass=$SMTP_PASSWORD" -e "dev_ips='$DEVELOPER_IPS'" -c ssh
   only:
     - main
+  needs: ["deploy_check_on_main"] # Ensure that the deployment only proceeds if the dry-run check on main was successful
 
 # Documentation stage (Doxygen) -> Deploys to GitLab Pages
 pages:
