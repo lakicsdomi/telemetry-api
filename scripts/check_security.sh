@@ -17,7 +17,9 @@ fi
 # Detect potential botnets by /24 subnet activity
 echo "[*] Scanning for potential botnetworks..."
 
-BOTNET_SUBNETS=$(sudo grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' "$AUTH_LOG" \
+# STRICT FILTER: Pre-filter log for failures before extracting IPs for subnet calculation
+BOTNET_SUBNETS=$(sudo grep -E "Failed password|Invalid user" "$AUTH_LOG" \
+    | grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' \
     | cut -d. -f1-3 \
     | sort \
     | uniq -c \
@@ -26,7 +28,9 @@ BOTNET_SUBNETS=$(sudo grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' "$AUTH_LOG" \
 for subnet in $BOTNET_SUBNETS; do
     echo "Potential botnet detected in subnet: ${subnet}.0/24"
 
-    IP_LIST=$(sudo grep "${subnet}\." "$AUTH_LOG" \
+    # STRICT FILTER: Ensure we only ban IPs from this subnet that actually caused errors
+    IP_LIST=$(sudo grep -E "Failed password|Invalid user" "$AUTH_LOG" \
+        | grep "${subnet}\." \
         | grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' \
         | sort -u)
 
