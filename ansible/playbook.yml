@@ -43,16 +43,27 @@
         force: yes
       become: false
 
-    # Generate the .env file with the SMTP password and dynamic IPs
+    # Generate the .env file with the SMTP password, dynamic IPs, and the specific Docker Image tag from GitLab CI
     - name: Create .env file with secrets
       copy:
         dest: /home/ubuntu/app/.env
         content: |
           SMTP_PASSWORD={{ smtp_pass }}
           AllowedIps={{ dev_ips | replace(' ', ',') }}
+          API_IMAGE={{ api_image }}
       become: false
 
-    # Run Docker Compose to build and start the application
+    # Authenticate with GitLab Container Registry to pull the private image
+    - name: Log in to GitLab Container Registry
+      shell: "docker login -u {{ registry_user }} -p {{ registry_password }} {{ registry }}"
+
+    # Pull the latest Docker images specified in the compose file
+    - name: Pull the latest Docker images
+      shell: "docker compose pull"
+      args:
+        chdir: /home/ubuntu/app
+
+    # Run Docker Compose to start the application
     - name: Start the Docker Compose stack
       shell: "docker compose up -d"
       args:
