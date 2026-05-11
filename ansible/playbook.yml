@@ -47,12 +47,12 @@
           enabled = true
       notify: Restart Fail2Ban
 
-    # Clone the application source code from GitLab
+    # Clone the application source code from GitLab using the dynamic branch
     - name: Clone the repository from GitLab
       git:
         repo: 'https://gitlab.com/lakicsdomi-portfolio/telemetry-api.git'
         dest: /home/ubuntu/app
-        version: main
+        version: "{{ git_branch | default('main') }}"
         force: yes
       become: false
 
