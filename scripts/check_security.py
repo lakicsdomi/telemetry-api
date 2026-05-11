@@ -19,7 +19,6 @@ def ban_ip(ip):
         stderr=subprocess.DEVNULL  # Suppress errors (e.g., if IP is already banned)
     )
 
-
 # Extract IP addresses from a given text using regex
 def extract_ips(text):
     return re.findall(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", text)
@@ -49,11 +48,13 @@ def main():
     subnet_map = defaultdict(set) # Map of subnet to unique IPs
 
     for line in lines:
-        ips = extract_ips(line) # Extract all IPs from the line (could be multiple in some cases)
+        # STRICT FILTER: Only process lines that indicate unauthorized access attempts
+        if "Failed password" in line or "Invalid user" in line:
+            ips = extract_ips(line) # Extract all IPs from the line
 
-        for ip in ips:
-            subnet = get_subnet(ip) # Get the /24 subnet
-            subnet_map[subnet].add(ip) # Add the IP to the set of unique IPs for that subnet
+            for ip in ips:
+                subnet = get_subnet(ip) # Get the /24 subnet
+                subnet_map[subnet].add(ip) # Add the IP to the set of unique IPs for that subnet
 
     for subnet, ips in subnet_map.items(): # Check if the number of unique IPs in this subnet exceeds the botnet threshold
         if len(ips) > BOTNET_THRESHOLD:
