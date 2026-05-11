@@ -4,6 +4,13 @@ using Microsoft.AspNetCore.HttpLogging;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add simple console logging with timestamps and single-line format
+builder.Logging.AddSimpleConsole(options =>
+{
+    options.SingleLine = true;
+    options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
+});
+
 // Register the telemetry service for DI
 builder.Services.AddSingleton<ITelemetryService, TelemetryService>();
 
@@ -18,6 +25,40 @@ builder.Services.AddHttpLogging(logging =>
 });
 
 var app = builder.Build();
+
+// Thread safe dictionary to track total requests per IP address
+var ipRequestCounts = new System.Collections.Concurrent.ConcurrentDictionary<string, int>();
+
+// Middleware to count requests per IP address
+app.Use(async (context, next) =>
+{
+    var ipAddress = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+    if (string.IsNullOrEmpty(ipAddress))
+    {
+        ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    }
+    ipRequestCounts.AddOrUpdate(ipAddress, 1, (key, count) => count + 1);
+    await next.Invoke();
+}); 
+
+// Secure stats endpoint
+app.MapGet("/stats/ips", (IConfiguration config, HttpContext context) =>
+{
+    // Get the allowed IPs from environment variable
+    var allowedIpsRaw = config["AllowedIps"] ?? "";
+    var allowedIps = allowedIpsRaw.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                  .Select(ip => ip.Trim());
+
+    var clientIp = context.Request.Headers["X-Forwarded-For"].FirstOrDefault() 
+                   ?? context.Connection.RemoteIpAddress?.ToString();
+
+    if (string.IsNullOrEmpty(clientIp) || !allowedIps.Contains(clientIp))
+    {
+        return Results.NotFound(); // Return 404 to hide the existence of this endpoint from unauthorized users
+    }
+
+    return Results.Ok(ipRequestCounts.OrderByDescending(x => x.Value));
+});
 
 // app.UseHttpsRedirection();
 

@@ -16,6 +16,12 @@ services:
       - .env
     environment:
       - ASPNETCORE_URLS=http://+:8080;http://+:9091 # Expose both the main API port and the metrics port for Prometheus scraping 
+    # Configure Docker log retention to avoid disk space issues
+    logging:
+      driver: "json-file" # Use the default JSON file logging driver
+      options:
+        max-size: "10m" # Rotate log files when they reach 10 megabytes
+        max-file: "3"   # Keep a maximum of 3 log files
     develop:
       watch:
         - action: rebuild
