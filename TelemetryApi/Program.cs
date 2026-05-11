@@ -81,7 +81,8 @@ app.MapMetrics().RequireHost("*:9091");
 
 app.MapGet("/status", (ITelemetryService telemetryService) =>
 {
-    return Results.Ok(telemetryService.GetStatus());
+    // Return an object instead of a raw string for better JSON structure and testability
+    return Results.Ok(new { service = "TelemetryApi", status = telemetryService.GetStatus() });
 });
 
 // Redirect root to /status for convenience

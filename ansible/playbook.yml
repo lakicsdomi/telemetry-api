@@ -82,6 +82,23 @@
       args:
         chdir: /home/ubuntu/app
 
+    # Set permissions for security scripts to ensure they are executable
+    - name: Set executable permission on security scripts
+      file:
+        path: "/home/ubuntu/app/scripts/{{ item }}"
+        mode: '0755'
+      loop:
+        - check_security.sh
+        - check_security.py
+
+    # Schedule the security audit and auto-ban script every hour
+    - name: Schedule security auto-ban script every hour
+      ansible.builtin.cron:
+        name: "Run SSH security auto-ban"
+        minute: "0" # Minden óra elején lefut
+        job: "/bin/bash /home/ubuntu/app/scripts/check_security.sh >> /home/ubuntu/security_audit.log 2>&1"
+      become: yes
+
   # Handlers are only executed if notified by a task that changed the system state
   handlers:
     - name: Restart Fail2Ban
