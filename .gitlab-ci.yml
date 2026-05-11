@@ -138,7 +138,7 @@ deploy_check_on_main:
   extends: .deploy_template
   script:
     - echo "Verifying deployment possibility on main server..."
-    - ansible-playbook -i inventory.ini playbook.yml -u ubuntu -e "smtp_pass=$SMTP_PASSWORD" -e "dev_ips='$DEVELOPER_IPS'" -c ssh --check
+    - ansible-playbook -i inventory.ini playbook.yml -u ubuntu -e "smtp_pass=$SMTP_PASSWORD" -e "dev_ips='$DEVELOPER_IPS'" -e "api_image=$IMAGE_TAG" -e "registry_user=$CI_REGISTRY_USER" -e "registry_password=$CI_REGISTRY_PASSWORD" -e "registry=$CI_REGISTRY" -c ssh --check
   only:
     - main
   # this ensures, that if there are any issues, the next deploy_to_aws job will not run
@@ -148,7 +148,7 @@ deploy_to_aws:
   extends: .deploy_template
   script:
     - echo "Executing deployment playbook..."
-    - ansible-playbook -i inventory.ini playbook.yml -u ubuntu -e "smtp_pass=$SMTP_PASSWORD" -e "dev_ips='$DEVELOPER_IPS'" -e "api_image=$IMAGE_TAG" -e "registry_user=$CI_REGISTRY_USER" -e "registry_password=$CI_REGISTRY_PASSWORD" -e "registry=$CI_REGISTRY" -c ssh
+    - ansible-playbook -i inventory.ini playbook.yml -u ubuntu -e "smtp_pass=$SMTP_PASSWORD" -e "dev_ips='$DEVELOPER_IPS'" -e "api_image=$IMAGE_TAG" -e "registry_user=$CI_REGISTRY_USER" -e "registry_password=$CI_REGISTRY_PASSWORD" -e "registry=$CI_REGISTRY" -c ssh --check
   only:
     - main
   needs: ["deploy_check_on_main"] # Ensure that the deployment only proceeds if the dry-run check on main was successful
