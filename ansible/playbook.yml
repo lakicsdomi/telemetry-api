@@ -31,7 +31,20 @@
         dest: /etc/fail2ban/jail.local
         content: |
           [DEFAULT]
+          # Whitelist current developer and local IPs
           ignoreip = 127.0.0.1/8 ::1 {{ dev_ips | replace(',', ' ') }}
+          
+          # Ban time: 24 hours (86400 seconds)
+          bantime  = 86400
+          
+          # Time window: 1 hour (3600 seconds) to look for retries
+          findtime  = 3600
+          
+          # Maximum retries before banning
+          maxretry = 3
+
+          [sshd]
+          enabled = true
       notify: Restart Fail2Ban
 
     # Clone the application source code from GitLab
@@ -68,6 +81,23 @@
       shell: "docker compose up -d"
       args:
         chdir: /home/ubuntu/app
+
+    # Set permissions for security scripts to ensure they are executable
+    - name: Set executable permission on security scripts
+      file:
+        path: "/home/ubuntu/app/scripts/{{ item }}"
+        mode: '0755'
+      loop:
+        - check_security.sh
+        - check_security.py
+
+    # Schedule the security audit and auto-ban script every hour
+    - name: Schedule security auto-ban script every hour
+      ansible.builtin.cron:
+        name: "Run SSH security auto-ban"
+        minute: "0" # Minden óra elején lefut
+        job: "/bin/bash /home/ubuntu/app/scripts/check_security.sh >> /home/ubuntu/security_audit.log 2>&1"
+      become: yes
 
   # Handlers are only executed if notified by a task that changed the system state
   handlers:
