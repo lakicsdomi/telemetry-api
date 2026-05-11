@@ -42,7 +42,7 @@ test:
       coverage_report:
         coverage_format: cobertura
         path: "**/TestResults/**/*.xml"
-  coverage: '/TOTAL_COVERAGE=(\d+\.\d+)/'
+  coverage: '/TOTAL_COVERAGE=(\d+(?:\.\d+)?)/'
 
 # Build the Docker image and push it to the registry
 build_and_push_image:
