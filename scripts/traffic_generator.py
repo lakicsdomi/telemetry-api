@@ -9,8 +9,10 @@ Make sure to have the API server running (e.g., via Docker) before executing thi
 import requests
 import time
 import random
+import sys
 
-API_BASE_URL = "http://localhost:8080"
+# Get API base URL from command line arguments or use default
+API_BASE_URL = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080"
 VALID_ENDPOINTS = ["/status", "/metrics"]
 INVALID_ENDPOINTS = ["/invalid", "/notfound", "/dogsandcats"]
 

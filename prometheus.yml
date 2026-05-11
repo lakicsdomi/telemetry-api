@@ -1,5 +1,5 @@
 global:
-    scrape_interval: 5s  # Get data every 5 seconds
+    scrape_interval: 15s  # Get data every 15 seconds
 
 scrape_configs:
   - job_name: 'telemetry-api'
