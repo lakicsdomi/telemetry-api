@@ -109,9 +109,11 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task StatsEndpoint_HandlesComplexAllowedIpString()
     {
         // Arrange
-        var configIps = " 1.1.1.1 , ,  127.0.0.1 ";
+        var targetIp = "123.123.123.123";  // outsider IP
+        var configIps = $" 1.1.1.1 , ,  {targetIp} ";
         var client = CreateConfiguredClient(configIps);
-        client.DefaultRequestHeaders.Add("X-Forwarded-For", "127.0.0.1");
+
+        client.DefaultRequestHeaders.Add("X-Forwarded-For", targetIp);
 
         // Act
         var response = await client.GetAsync("/stats/ips");
@@ -119,8 +121,9 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
         // Assert
         response.EnsureSuccessStatusCode();
         var stats = await response.Content.ReadFromJsonAsync<Dictionary<string, int>>();
+
         Assert.NotNull(stats);
-        Assert.True(stats.ContainsKey("127.0.0.1"));
+        Assert.True(stats.ContainsKey(targetIp), $"The statistic should contain the {targetIp} address.");
     }
 
     /// <summary>

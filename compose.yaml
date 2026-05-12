@@ -10,8 +10,9 @@
 services:
   server:
     image: ${API_IMAGE}
-    ports:
-      - 8080:8080
+    expose:
+      - "8080"
+      - "9091"
     env_file:
       - .env
     environment:
@@ -22,6 +23,8 @@ services:
       options:
         max-size: "10m" # Rotate log files when they reach 10 megabytes
         max-file: "3"   # Keep a maximum of 3 log files
+    networks:
+      - telemetry-net
     develop:
       watch:
         - action: rebuild
@@ -29,6 +32,19 @@ services:
           ignore:
             - bin/
             - obj/
+  
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80" # Map host 8080 to Nginx port 80
+    environment:
+      - BACKEND_HOST=server:8080 # Dynamic backend target for the template
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - server
+    networks:
+      - telemetry-net
 
   prometheus: 
     image: prom/prometheus
@@ -38,6 +54,8 @@ services:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     depends_on:
       - server
+    networks:
+      - telemetry-net
   
   grafana:
     image: grafana/grafana
@@ -60,6 +78,12 @@ services:
       - GF_SMTP_FROM_ADDRESS=lakicsdomi@gmail.com
     depends_on:
       - prometheus
+    networks:
+      - telemetry-net
+
+networks:
+  telemetry-net:
+    driver: bridge
 
 volumes:
   grafana-data: # persists Grafana data between container restarts

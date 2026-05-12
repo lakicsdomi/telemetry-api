@@ -498,3 +498,10 @@ telemetry_key.pub
 
 # Ansible
 *.retry
+
+# Docker Compose override files
+compose.override.yaml
+docker-compose.override.yaml
+
+# Git patch files
+*.patch

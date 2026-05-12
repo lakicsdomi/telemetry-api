@@ -1,36 +1,53 @@
 using Prometheus;  // Prometheus for metrics collection, this will be the data source in Grafana
 using TelemetryApi;
-using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.AspNetCore.HttpLogging;  // For logging HTTP requests and responses
+using Microsoft.AspNetCore.HttpOverrides; // For handling X-Forwarded-For headers correctly when behind a reverse proxy
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add simple console logging with timestamps and single-line format
 builder.Logging.AddSimpleConsole(options =>
 {
-    options.SingleLine = true;
+    options.SingleLine = false;
     options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
 });
 
 // Register the telemetry service for DI
 builder.Services.AddSingleton<ITelemetryService, TelemetryService>();
 
+
+// Forwarded Headers configuration
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    // Check for X-Forwarded-For and X-Forwarded-Proto headers
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+    // ON the Docker network, the proxy (Nginx) IP can change, so we clear the security restrictions
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 // Standard HTTP Logging for Docker (Logs to stdout, includes IP, safely redacts headers)
 builder.Services.AddHttpLogging(logging =>
 {
     logging.LoggingFields = HttpLoggingFields.RequestMethod |
-                            HttpLoggingFields.RequestPropertiesAndHeaders |
+                            HttpLoggingFields.RequestPath |
                             HttpLoggingFields.ResponseStatusCode |
-                            HttpLoggingFields.RequestPath;
+                            HttpLoggingFields.RequestProperties |
+                            HttpLoggingFields.RequestHeaders;
 
-    // Log the real client IP address (from X-Forwarded-For or RemoteIpAddress)
+    // Specifically explicitly log only this header to see the real IP
     logging.RequestHeaders.Add("X-Forwarded-For");
-    // Avoid logging Prometheus scrape requests to prevent log spam
     logging.CombineLogs = true;
-
-    
 });
 
 var app = builder.Build();
+
+// Log the request while the X-Forwarded-For header still exists
+app.UseHttpLogging();
+
+// Middleware to get the correct client IP address when behind a reverse proxy.
+app.UseForwardedHeaders();
 
 // Thread safe dictionary to track total requests per IP address
 var ipRequestCounts = new System.Collections.Concurrent.ConcurrentDictionary<string, int>();
@@ -38,42 +55,36 @@ var ipRequestCounts = new System.Collections.Concurrent.ConcurrentDictionary<str
 // Middleware to count requests per IP address
 app.Use(async (context, next) =>
 {
-    var ipAddress = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-    if (string.IsNullOrEmpty(ipAddress))
+    var clientIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+    if (clientIp != "::1" && clientIp != "127.0.0.1")
     {
-        ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        ipRequestCounts.AddOrUpdate(clientIp, 1, (key, count) => count + 1);
     }
-    ipRequestCounts.AddOrUpdate(ipAddress, 1, (key, count) => count + 1);
     await next.Invoke();
-}); 
+});
 
 // Secure stats endpoint
 app.MapGet("/stats/ips", (IConfiguration config, HttpContext context) =>
 {
-    // Get the allowed IPs from environment variable
     var allowedIpsRaw = config["AllowedIps"] ?? "";
     var allowedIps = allowedIpsRaw.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                                  .Select(ip => ip.Trim());
+                                  .Select(ip => ip.Split('/')[0].Trim()); // CIDR /32
 
-    var clientIp = context.Request.Headers["X-Forwarded-For"].FirstOrDefault() 
-                   ?? context.Connection.RemoteIpAddress?.ToString();
+    var clientIp = context.Connection.RemoteIpAddress?.ToString();
 
     if (string.IsNullOrEmpty(clientIp) || !allowedIps.Contains(clientIp))
     {
-        return Results.NotFound(); // Return 404 to hide the existence of this endpoint from unauthorized users
+        return Results.NotFound();
     }
 
-    // Explicit ToDictionary call ensures the JSON serializes as a standard JSON object {}
     var result = ipRequestCounts.OrderByDescending(x => x.Value)
-                            .ToDictionary(x => x.Key, x => x.Value);
+                                .ToDictionary(x => x.Key, x => x.Value);
 
     return Results.Ok(result);
 });
 
 // app.UseHttpsRedirection();
-
-// HTTP logging middleware
-app.UseHttpLogging();
 
 app.UseRouting();
 
