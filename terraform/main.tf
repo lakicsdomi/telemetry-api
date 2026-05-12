@@ -36,8 +36,8 @@ resource "aws_key_pair" "deployer" {
 
 # Create a Security Group (Firewall rules)
 resource "aws_security_group" "telemetry_sg" {
-  name        = "telemetry-security-group"
-  description = "Allow inbound traffic for SSH, API, Grafana, and Prometheus"
+  name_prefix = "telemetry-sg-"
+  description = "Allow inbound traffic for SSH, HTTP/HTTPS, Grafana, and Prometheus"
 
   ingress {
     description = "SSH"
@@ -49,10 +49,20 @@ resource "aws_security_group" "telemetry_sg" {
     cidr_blocks = ["0.0.0.0/0"] 
   }
 
+  # Port 80 for Let's Encrypt verification and HTTP to HTTPS redirection
   ingress {  
-    description = "Minimal API"
-    from_port   = 8080
-    to_port     = 8080
+    description = "HTTP"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Port 443 for Secure API (SSL/TLS)
+  ingress {  
+    description = "HTTPS"
+    from_port   = 443
+    to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -81,6 +91,10 @@ resource "aws_security_group" "telemetry_sg" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
