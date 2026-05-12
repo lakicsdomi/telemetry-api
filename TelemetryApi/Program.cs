@@ -27,6 +27,9 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 
+// Exclude some redundant, automatic requests from logging.   
+builder.Services.AddHttpLoggingInterceptor<ExcludeMetricsLoggingInterceptor>();
+
 // Standard HTTP Logging for Docker (Logs to stdout, includes IP, safely redacts headers)
 builder.Services.AddHttpLogging(logging =>
 {
@@ -110,3 +113,41 @@ app.Run();
 /// Has minimal setup to create a web application that serves telemetry data at the /status endpoint and exposes Prometheus metrics at /metrics.
 /// </summary>
 public partial class Program { }
+
+
+
+/// <summary>
+/// Interceptor to silently ignore SUCCESSFUL Prometheus scrapes and favicon 404s, 
+/// but explicitly log any /metrics failures.
+/// </summary>
+public class ExcludeMetricsLoggingInterceptor : IHttpLoggingInterceptor
+{
+    public ValueTask OnRequestAsync(HttpLoggingInterceptorContext logContext)
+    {
+        var path = logContext.HttpContext.Request.Path;
+
+        // A favicon-t azonnal eldobhatjuk, mert az biztosan nem érdekel minket
+        if (path.StartsWithSegments("/favicon.ico"))
+        {
+            logContext.LoggingFields = HttpLoggingFields.None;
+        }
+
+        return default;
+    }
+
+    public ValueTask OnResponseAsync(HttpLoggingInterceptorContext logContext)
+    {
+        var path = logContext.HttpContext.Request.Path;
+        var statusCode = logContext.HttpContext.Response.StatusCode;
+
+        // A metrics-nél megvárjuk a választ! 
+        // CSAK AKKOR némítjuk el a logolást, ha a szerver sikeresen (200 OK) kiszolgálta.
+        // Ha bármilyen hiba történik (pl. 404, 500), a logContext marad, és kiíródik a hibás kérés!
+        if (path.StartsWithSegments("/metrics") && statusCode == 200)
+        {
+            logContext.LoggingFields = HttpLoggingFields.None;
+        }
+
+        return default;
+    }
+}
