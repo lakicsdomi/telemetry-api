@@ -64,6 +64,7 @@
           SMTP_PASSWORD={{ smtp_pass }}
           AllowedIps={{ dev_ips | replace(' ', ',') }}
           API_IMAGE={{ api_image }}
+          DOMAIN_NAME={{ domain_name }}
       become: false
 
     # Authenticate with GitLab Container Registry to pull the private image
@@ -75,6 +76,22 @@
       shell: "docker compose pull"
       args:
         chdir: /home/ubuntu/app
+
+    - name: Install Certbot
+      become: yes
+      apt:
+        name: certbot
+        state: present
+
+    - name: Obtain SSL certificate from Let's Encrypt
+      become: yes
+      command: >
+        certbot certonly --standalone 
+        --non-interactive --agree-tos 
+        --email lakicsdomi@gmail.com 
+        -d {{ domain_name }}
+      args:
+        creates: /etc/letsencrypt/live/{{ domain_name }}/fullchain.pem
 
     # Run Docker Compose to start the application
     - name: Start the Docker Compose stack
