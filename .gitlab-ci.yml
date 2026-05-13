@@ -1,9 +1,16 @@
 workflow: # Define the workflow rules to control when pipelines are created
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # Prevent branch pipelines if an MR is open for that branch.
     - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
-      when: never # Prevent duplicate pipelines for branches with open merge requests
+      when: never 
+
+    # Allow pipeline for MR events (test)
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    
+    # Allow pipeline for the main branch (deploy)
     - if: $CI_COMMIT_BRANCH == "main" 
+
+    # Allow pipeline for other branches without open MRs (build/test)
     - if: $CI_COMMIT_BRANCH 
 
 # Global default settings for all jobs
@@ -22,21 +29,31 @@ stages:
 # Include the dependency scanning template
 include:
   - template: Jobs/Dependency-Scanning.gitlab-ci.yml
-  
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG} # per branch to avoid conflicts
+  paths:
+    - .nuget/packages/ # Cache NuGet packages to speed up restores
+  policy: pull-push
+  fallback_keys:
+    - main # Fallback to main branch cache if the current branch cache is not available
+    - default # Fallback to default cache if main branch cache is also not available
+
 # Global variables
 variables:
   IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
   # Use this variable in GitLab UI (Settings -> CI/CD -> Variables) 
   # to set "my-pc-runner" or leave it empty for Shared Runners.
   RUNNER_TAG: "" 
+  NUGET_PACKAGES_DIRECTORY: ".nuget/packages"
 
 # Test stage with Coverage and JUnit reports
 test:
   stage: test
   image: mcr.microsoft.com/dotnet/sdk:9.0-alpine
   script:
-    - echo "Running unit tests..."
-    - dotnet restore ./TelemetryApi.sln 
+    - echo "Running unit tests with cache..."
+    - dotnet restore ./TelemetryApi.sln --packages $NUGET_PACKAGES_DIRECTORY
     - mkdir -p ./junit 
     - >
       dotnet test ./TelemetryApi.Tests/TelemetryApi.Tests.csproj -c Release 
@@ -72,7 +89,7 @@ test:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
     - echo "Building the Docker image..."
-    - docker build -t $IMAGE_TAG .
+    - docker build --pull -t $IMAGE_TAG . # Use --pull to ensure we get the latest base images for security updates
     - echo "Pushing the image to the registry..."
     - docker push $IMAGE_TAG
 
@@ -192,29 +209,53 @@ deploy_to_aws:
       -e "registry=$CI_REGISTRY" 
       -e "git_branch=$CI_COMMIT_REF_NAME" 
       -e "domain_name=$DOMAIN_NAME"
-  only:
-    - main
   needs: ["deploy_check_on_main"] 
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" # Only deploy to AWS when changes are merged into main
+      changes:
+      - "ansible/**/*"          # Ansible playbooks and roles for deployment and configuration management
+      - "scripts/**/*"          # Scripts for security, monitoring, and maintenance tasks
+      - "TelemetryApi/**/*"     # Application code changes
+      - "terraform/**/*"        # Terraform infrastructure changes (new resources, configuration changes)
+      - "grafana/**/*"          # Grafana provisioning and dashboard changes
+      - "prometheus.yml"        # Prometheus scrape config changes (new targets, interval changes)
+      - "compose.yaml"          # Docker stack config changes (new services, network changes, volume changes)
+      - "nginx.conf"            # Reverse proxy and SSL configuration changes
+      - ".gitlab-ci.yml"        # Pipeline logic changes
+      - "Dockerfile"            # Container build changes, app environment changes
+      
 
 # Documentation stage (Doxygen)
 pages:
   stage: deploy
   image: alpine:latest
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}-doxygen
+    paths:
+      - public/
+    policy: pull-push
   before_script:
     - apk add --no-cache doxygen graphviz
   script:
     - mkdir -p public
-    - doxygen -g Doxyfile
-    - sed -i 's/^PROJECT_NAME.*/PROJECT_NAME = "Telemetry API"/' Doxyfile
-    - sed -i 's|^INPUT .*|INPUT = README.md TelemetryApi/ TelemetryApi.Tests/|' Doxyfile
-    - sed -i 's|^USE_MDFILE_AS_MAINPAGE .*|USE_MDFILE_AS_MAINPAGE = README.md|' Doxyfile
-    - sed -i 's|^EXCLUDE .*|EXCLUDE = README.Docker.md TelemetryApi/obj/ TelemetryApi/bin/|' Doxyfile
-    - sed -i 's/^RECURSIVE.*/RECURSIVE = YES/' Doxyfile
-    - sed -i 's/^GENERATE_HTML.*/GENERATE_HTML = YES/' Doxyfile
-    - sed -i 's|^HTML_OUTPUT .*|HTML_OUTPUT = public|' Doxyfile
+    - |
+      if [ ! -f Doxyfile ]; then
+          doxygen -g Doxyfile
+          sed -i 's/^PROJECT_NAME.*/PROJECT_NAME = "Telemetry API"/' Doxyfile
+          sed -i 's|^INPUT .*|INPUT = README.md TelemetryApi/ TelemetryApi.Tests/|' Doxyfile
+          sed -i 's|^USE_MDFILE_AS_MAINPAGE .*|USE_MDFILE_AS_MAINPAGE = README.md|' Doxyfile
+          sed -i 's|^EXCLUDE .*|EXCLUDE = README.Docker.md TelemetryApi/obj/ TelemetryApi/bin/|' Doxyfile
+          sed -i 's/^RECURSIVE.*/RECURSIVE = YES/' Doxyfile
+          sed -i 's/^GENERATE_HTML.*/GENERATE_HTML = YES/' Doxyfile
+          sed -i 's|^HTML_OUTPUT .*|HTML_OUTPUT = public|' Doxyfile
+      fi
     - doxygen Doxyfile
   artifacts:
     paths:
       - public
-  only:
-    - main
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - "TelemetryApi/**/*"
+        - "README.md"
+        - ".gitlab-ci.yml"
