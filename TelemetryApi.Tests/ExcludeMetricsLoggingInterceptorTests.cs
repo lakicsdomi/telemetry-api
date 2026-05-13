@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpLogging;
+using TelemetryApi;
+using Xunit;
 
 namespace TelemetryApi.Tests;
 
@@ -49,7 +51,7 @@ public class ExcludeMetricsLoggingInterceptorTests
         var logContext = new HttpLoggingInterceptorContext
         {
             // Set an initial state to verify it remains unchanged
-            LoggingFields = HttpLoggingFields.All 
+            LoggingFields = HttpLoggingFields.All
         };
 
         // Act
