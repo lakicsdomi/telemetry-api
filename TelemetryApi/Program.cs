@@ -117,8 +117,8 @@ public partial class Program { }
 
 
 /// <summary>
-/// Interceptor to silently ignore SUCCESSFUL Prometheus scrapes and favicon 404s, 
-/// but explicitly log any /metrics failures.
+/// Interceptor to strictly mute all Prometheus scrapes and favicon requests.
+/// This prevents log buffering and reduces CPU/RAM usage during scans.
 /// </summary>
 public class ExcludeMetricsLoggingInterceptor : IHttpLoggingInterceptor
 {
@@ -126,8 +126,8 @@ public class ExcludeMetricsLoggingInterceptor : IHttpLoggingInterceptor
     {
         var path = logContext.HttpContext.Request.Path;
 
-        // A favicon-t azonnal eldobhatjuk, mert az biztosan nem érdekel minket
-        if (path.StartsWithSegments("/favicon.ico"))
+        // Immediate mute for /metrics and favicon - no buffering, no processing
+        if (path.StartsWithSegments("/metrics") || path.StartsWithSegments("/favicon.ico"))
         {
             logContext.LoggingFields = HttpLoggingFields.None;
         }
@@ -135,19 +135,6 @@ public class ExcludeMetricsLoggingInterceptor : IHttpLoggingInterceptor
         return default;
     }
 
-    public ValueTask OnResponseAsync(HttpLoggingInterceptorContext logContext)
-    {
-        var path = logContext.HttpContext.Request.Path;
-        var statusCode = logContext.HttpContext.Response.StatusCode;
-
-        // A metrics-nél megvárjuk a választ! 
-        // CSAK AKKOR némítjuk el a logolást, ha a szerver sikeresen (200 OK) kiszolgálta.
-        // Ha bármilyen hiba történik (pl. 404, 500), a logContext marad, és kiíródik a hibás kérés!
-        if (path.StartsWithSegments("/metrics") && statusCode == 200)
-        {
-            logContext.LoggingFields = HttpLoggingFields.None;
-        }
-
-        return default;
-    }
+    // OnResponseAsync is no longer needed since we mute at the start
+    public ValueTask OnResponseAsync(HttpLoggingInterceptorContext logContext) => default;
 }
