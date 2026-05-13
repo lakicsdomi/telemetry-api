@@ -4,7 +4,8 @@
   become: yes
 
   tasks:
-    # Fix dpkg and forcefully purge any conflicting Docker remnants.
+    # System Cleanup: Fix broken packages and remove any Docker-related conflicts
+    # This ensures a stable base before installing our specific Docker version.
     - name: Force cleanup of broken dpkg and purge Docker remnants
       shell: |
         dpkg --configure -a || true
@@ -14,17 +15,21 @@
         apt-get autoremove -y || true
       ignore_errors: yes
 
-    # Now that the system is completely clean, install the OS-provided packages
-    - name: Update apt cache and install Docker, Git, and Fail2Ban
+    # Package Installation: Install Docker, Git, Fail2Ban and Certbot
+    # Using standard Ubuntu repositories for maximum stability on t3.micro.
+    - name: Update apt cache and install core dependencies
       apt:
         name:
           - docker.io
           - docker-compose-v2
           - git
           - fail2ban
+          - certbot
         state: present
         update_cache: yes
 
+    # Memory Optimization: Ensure 2GB Swap file exists
+    # Critical for t3.micro (1GB RAM) to prevent OOM (Out Of Memory) kills during high load.
     - name: Ensure 2GB Swap file exists
       shell: |
         if [ ! -f /swapfile ]; then
@@ -37,29 +42,23 @@
       args:
         creates: /swapfile
 
-    # Secure SSH access by whitelisting developer IPs in Fail2Ban
-    - name: Whitelist my IPs in Fail2Ban
+    # Security: Configure Fail2Ban with Developer IP whitelisting
+    # bantime is set to 24h to aggressively block brute-force attempts.
+    - name: Configure Fail2Ban jail.local
       copy:
         dest: /etc/fail2ban/jail.local
         content: |
           [DEFAULT]
-          # Whitelist current developer and local IPs
           ignoreip = 127.0.0.1/8 ::1 {{ dev_ips | replace(',', ' ') }}
-          
-          # Ban time: 24 hours (86400 seconds)
           bantime  = 86400
-          
-          # Time window: 1 hour (3600 seconds) to look for retries
           findtime  = 3600
-          
-          # Maximum retries before banning
           maxretry = 3
 
           [sshd]
           enabled = true
       notify: Restart Fail2Ban
 
-    # Clone the application source code from GitLab using the dynamic branch
+    # Application Deployment: Clone source and setup environment
     - name: Clone the repository from GitLab
       git:
         repo: 'https://gitlab.com/lakicsdomi-portfolio/telemetry-api.git'
@@ -68,8 +67,7 @@
         force: yes
       become: false
 
-    # Generate the .env file with the SMTP password, dynamic IPs, and the specific Docker Image tag from GitLab CI
-    - name: Create .env file with secrets
+    - name: Create .env file for Docker Compose
       copy:
         dest: /home/ubuntu/app/.env
         content: |
@@ -79,24 +77,19 @@
           DOMAIN_NAME={{ domain_name }}
       become: false
 
-    # Authenticate with GitLab Container Registry to pull the private image
+    # Docker Operations: Registry login, Pull and Start containers
     - name: Log in to GitLab Container Registry
       shell: "docker login -u {{ registry_user }} -p {{ registry_password }} {{ registry }}"
 
-    # Pull the latest Docker images specified in the compose file
-    - name: Pull the latest Docker images
-      shell: "docker compose pull"
+    - name: Pull latest images and start stack
+      shell: |
+        docker compose pull
+        docker compose up -d
       args:
         chdir: /home/ubuntu/app
 
-    - name: Install Certbot
-      become: yes
-      apt:
-        name: certbot
-        state: present
-
-    - name: Obtain SSL certificate from Let's Encrypt
-      become: yes
+    # SSL Management: Obtain Let's Encrypt certificate
+    - name: Obtain SSL certificate via Certbot
       command: >
         certbot certonly --standalone 
         --non-interactive --agree-tos 
@@ -105,14 +98,8 @@
       args:
         creates: /etc/letsencrypt/live/{{ domain_name }}/fullchain.pem
 
-    # Run Docker Compose to start the application
-    - name: Start the Docker Compose stack
-      shell: "docker compose up -d"
-      args:
-        chdir: /home/ubuntu/app
-
-    # Set permissions for security scripts to ensure they are executable
-    - name: Set executable permission on security scripts
+    # Maintenance & Hardening: Permissions, Cron, and SSH Security
+    - name: Set executable permissions on scripts
       file:
         path: "/home/ubuntu/app/scripts/{{ item }}"
         mode: '0755'
@@ -121,19 +108,35 @@
         - check_security.py
       ignore_errors: "{{ ansible_check_mode }}"
 
-    # Schedule the security audit and auto-ban script every hour
-    - name: Schedule security auto-ban script every hour
+    - name: Schedule security auto-ban cron job
       ansible.builtin.cron:
         name: "Run SSH security auto-ban"
-        minute: "0" # Minden óra elején lefut
+        minute: "0"
         job: "/bin/bash /home/ubuntu/app/scripts/check_security.sh >> /home/ubuntu/security_audit.log 2>&1"
-      become: yes
 
-  # Handlers are only executed if notified by a task that changed the system state
+    # SSH Hardening: Disable password login but keep PAM enabled for session management.
+    # This prevents brute-force while ensuring system stability.
+    - name: Hardening SSH configuration
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        state: present
+      loop:
+        - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }
+        - { regexp: '^#?PubkeyAuthentication', line: 'PubkeyAuthentication yes' }
+        - { regexp: '^#?UsePAM', line: 'UsePAM yes' }
+        - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin prohibit-password' }
+      notify: Restart SSH
+
   handlers:
+    - name: Restart SSH
+      service:
+        name: ssh
+        state: restarted
+
     - name: Restart Fail2Ban
       service:
         name: fail2ban
         state: restarted
-      # Avoid dry-run errors by only restarting if we're not in check mode
       when: not ansible_check_mode
