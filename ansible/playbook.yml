@@ -25,6 +25,18 @@
         state: present
         update_cache: yes
 
+    - name: Ensure 2GB Swap file exists
+      shell: |
+        if [ ! -f /swapfile ]; then
+          fallocate -l 2G /swapfile
+          chmod 600 /swapfile
+          mkswap /swapfile
+          swapon /swapfile
+          echo '/swapfile none swap sw 0 0' >> /etc/fstab
+        fi
+      args:
+        creates: /swapfile
+
     # Secure SSH access by whitelisting developer IPs in Fail2Ban
     - name: Whitelist my IPs in Fail2Ban
       copy:
